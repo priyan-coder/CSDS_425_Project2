@@ -16,7 +16,7 @@
 #define BUFLEN 1024
 
 int usage(char *progname) {
-    fprintf(stderr, "usage: %s host port\n", progname);
+    fprintf(stderr, "usage: %s -u URL [-i] [-c] [-s] -o filename\n", progname);
     exit(ERROR);
 }
 
@@ -32,25 +32,34 @@ int main(int argc, char *argv[]) {
     struct protoent *protoinfo;
     char buffer[BUFLEN];
     int sd, ret, opt;
+    char *val = NULL;
 
     if (argc < REQUIRED_ARGC)
         usage(argv[0]);
+    // for (int i = 1; i < argc; i++) {
+    //     printf("%s\n", argv[i]);
+    // }
 
-    while ((opt = getopt(argc, argv, "u:o:")) != -1) {
-        switch (opt) {
-            case 'o':
-                printf("filename %s\n", optarg);
-                break;
-            case 'u':
-                printf("url: %s\n", optarg);
-                break;
-            case '?':
-                if (optopt == 'u' || optopt == 'o') {
-                    printf("Missing mandatory option\n");
-                } else {
-                    printf("Invalid option received\n");
-                }
-                break;
+    while (optind < argc) {
+        if ((opt = getopt(argc, argv, "u:o:")) != -1) {
+            switch (opt) {
+                case 'o':
+                    printf("filename %s\n", optarg);
+                    break;
+                case 'u':
+                    val = optarg;
+                    printf("url: %s\n", optarg);
+                    break;
+                case '?':
+                    printf("Mandatory argument missing or Invalid option received\n");
+                    break;
+            }
+        } else {
+            if (argv[optind] == NULL || argv[optind + 1] == NULL) {
+                printf("Mandatory argument(s) missing\n");
+                exit(1);
+            }
+            optind += 1;
         }
     }
 
