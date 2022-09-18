@@ -38,19 +38,16 @@ int main(int argc, char *argv[]) {
     bool URL_PARSED = false;
     char *url = NULL;
 
-    if (argc < REQUIRED_ARGC)
+    if (argc < REQUIRED_ARGC) {
         usage(argv[0]);
-
-    // for (int i = 1; i < argc; i++) {
-    //     printf("%s\n", argv[i]);
-    // }
+    }
 
     while (optind < argc) {
         if ((opt = getopt(argc, argv, ":u:o:")) != -1) {
             switch (opt) {
                 case 'o':
                     FILENAME_PARSED = true;
-                    printf("filename %s\n", optarg);
+                    printf("filename: %s\n", optarg);
                     break;
                 case 'u':
                     URL_PARSED = true;
@@ -75,38 +72,34 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
+    /* Convert to lowercase */
     char *endpoint = malloc(strlen(url) * sizeof(char));
     strcpy(endpoint, url);
     for (int i = 0; i < strlen(url); i++) {
         endpoint[i] = tolower(endpoint[i]);
     }
-    // printf("%s\n", endpoint);
 
-    // printf("%s\n", token);
-    char *info[2];
-    // int result = strcmp(token, "http");
-    // printf("%d\n", result);
-    // if (result != 0) {
-    //     printf("Only Http is supported\n");
-    //     exit(1);
-    // }
-    int i = 0;
+    /* Check for Http only */
     char *token = strtok(endpoint, "/");
-    while (token != NULL && i < 2) {
+    if ((strcmp(token, "http:")) != 0) {
+        printf("Only Http is supported\n");
+        exit(1);
+    }
+
+    /* Tokenize the URL*/
+    char **info = malloc(sizeof(char) * 0);
+    int i = 0;
+    while (token != NULL) {
+        info = realloc(info, sizeof(char) * (i + 1));
         // printf("%s\n", token);
         info[i] = token;
         token = strtok(NULL, "/");
         i++;
     }
-    // printf("%s\n", endpoint);
-    // for (int i = 0; i < strlen(url); i++) {
-    //     printf("%c\n", endpoint[i]);
+    // printf("num of elems : %d\n", i);
+    // while (i--) {
+    //     printf("%s\n", info[i]);
     // }
-    int j = 0;
-    while (j <= 2) {
-        printf("%s\n", info[j]);
-        j++;
-    }
 
     /* Get all of the non-option arguments */
     // if (optind < argc) {
