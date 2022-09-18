@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "stdbool.h"
+
 #define ERROR 1
 #define REQUIRED_ARGC 5
 #define HOST_POS 1
@@ -32,36 +34,42 @@ int main(int argc, char *argv[]) {
     struct protoent *protoinfo;
     char buffer[BUFLEN];
     int sd, ret, opt;
-    char *val = NULL;
 
     if (argc < REQUIRED_ARGC)
         usage(argv[0]);
+
     // for (int i = 1; i < argc; i++) {
     //     printf("%s\n", argv[i]);
     // }
 
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, "u:o:")) != -1) {
+        if ((opt = getopt(argc, argv, ":u:o:")) != -1) {
             switch (opt) {
                 case 'o':
                     printf("filename %s\n", optarg);
                     break;
                 case 'u':
-                    val = optarg;
                     printf("url: %s\n", optarg);
                     break;
                 case '?':
-                    printf("Mandatory argument missing or Invalid option received\n");
+                    printf("Unknown option: %c\n", optopt);
                     break;
+                case ':':
+                    printf("Missing arg for %c\n", optopt);
+                    usage(argv[0]);
             }
         } else {
-            if (argv[optind] == NULL || argv[optind + 1] == NULL) {
-                printf("Mandatory argument(s) missing\n");
-                exit(1);
-            }
             optind += 1;
         }
     }
+    // printf("%d\n", optind);
+    /* Get all of the non-option arguments */
+    // if (optind < argc) {
+    //     printf("Non-option args: ");
+    //     while (optind < argc)
+    //         printf("%s ", argv[optind++]);
+    //     printf("\n");
+    // }
 
     // /* lookup the hostname */
     // hinfo = gethostbyname(argv[HOST_POS]);
