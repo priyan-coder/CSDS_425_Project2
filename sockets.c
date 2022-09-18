@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
     struct protoent *protoinfo;
     char buffer[BUFLEN];
     int sd, ret, opt;
+    bool FILENAME_PARSED = false;
+    bool URL_PARSED = false;
 
     if (argc < REQUIRED_ARGC)
         usage(argv[0]);
@@ -46,9 +48,11 @@ int main(int argc, char *argv[]) {
         if ((opt = getopt(argc, argv, ":u:o:")) != -1) {
             switch (opt) {
                 case 'o':
+                    FILENAME_PARSED = true;
                     printf("filename %s\n", optarg);
                     break;
                 case 'u':
+                    URL_PARSED = true;
                     printf("url: %s\n", optarg);
                     break;
                 case '?':
@@ -62,7 +66,12 @@ int main(int argc, char *argv[]) {
             optind += 1;
         }
     }
-    // printf("%d\n", optind);
+
+    if (!FILENAME_PARSED || !URL_PARSED) {
+        printf("Mandatory args missing!\n");
+        usage(argv[0]);
+    }
+
     /* Get all of the non-option arguments */
     // if (optind < argc) {
     //     printf("Non-option args: ");
