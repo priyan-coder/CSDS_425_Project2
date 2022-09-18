@@ -1,4 +1,4 @@
-
+#include <ctype.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
     int sd, ret, opt;
     bool FILENAME_PARSED = false;
     bool URL_PARSED = false;
+    char *url = NULL;
 
     if (argc < REQUIRED_ARGC)
         usage(argv[0]);
@@ -53,6 +54,8 @@ int main(int argc, char *argv[]) {
                     break;
                 case 'u':
                     URL_PARSED = true;
+                    // printf("%lu", strlen(optarg));
+                    url = optarg;
                     printf("url: %s\n", optarg);
                     break;
                 case '?':
@@ -70,6 +73,39 @@ int main(int argc, char *argv[]) {
     if (!FILENAME_PARSED || !URL_PARSED) {
         printf("Mandatory args missing!\n");
         usage(argv[0]);
+    }
+
+    char *endpoint = malloc(strlen(url) * sizeof(char));
+    strcpy(endpoint, url);
+    for (int i = 0; i < strlen(url); i++) {
+        endpoint[i] = tolower(endpoint[i]);
+    }
+    // printf("%s\n", endpoint);
+
+    // printf("%s\n", token);
+    char *info[2];
+    // int result = strcmp(token, "http");
+    // printf("%d\n", result);
+    // if (result != 0) {
+    //     printf("Only Http is supported\n");
+    //     exit(1);
+    // }
+    int i = 0;
+    char *token = strtok(endpoint, "/");
+    while (token != NULL && i < 2) {
+        // printf("%s\n", token);
+        info[i] = token;
+        token = strtok(NULL, "/");
+        i++;
+    }
+    // printf("%s\n", endpoint);
+    // for (int i = 0; i < strlen(url); i++) {
+    //     printf("%c\n", endpoint[i]);
+    // }
+    int j = 0;
+    while (j <= 2) {
+        printf("%s\n", info[j]);
+        j++;
     }
 
     /* Get all of the non-option arguments */
