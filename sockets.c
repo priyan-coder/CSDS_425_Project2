@@ -48,27 +48,27 @@ int main(int argc, char *argv[]) {
     }
 
     while (optind < argc) {
+        //  To disable the automatic error printing, simply put a colon as the first character in optstring:
         if ((opt = getopt(argc, argv, ":u:o:i")) != -1) {
             switch (opt) {
                 case 'o':
                     FILENAME_PARSED = true;
-                    // printf("filename: %s\n", optarg);
+                    OUTPUT_FILENAME = optarg;
                     break;
                 case 'u':
                     URL_PARSED = true;
-                    // printf("%lu", strlen(optarg));
                     url = optarg;
-                    // printf("url: %s\n", optarg);
                     break;
                 case 'i':
-                    // PRINT INFO
                     PRINT_INFO = true;
+                    break;
                 case '?':
                     printf("Unknown option: %c\n", optopt);
                     break;
                 case ':':
                     printf("Missing arg for %c\n", optopt);
                     usage(argv[0]);
+                    break;
             }
         } else {
             optind += 1;
@@ -84,10 +84,8 @@ int main(int argc, char *argv[]) {
     char *endpoint = malloc((sizeof(url) + 1) * sizeof(char));
     strcpy(endpoint, url);
     for (int i = 0; i < strlen(url); i++) {
-        endpoint[i] = tolower(endpoint[i]);
-        // printf("%c\n", endpoint[i]);
+        endpoint[i] = tolower(endpoint[i]);  // each elem is a character
     }
-    // printf("%c\n", endpoint[strlen(url) - 1]);
 
     /* Check for Http only */
     char *token = strtok(endpoint, "/");
@@ -97,56 +95,37 @@ int main(int argc, char *argv[]) {
     }
 
     /* Tokenize the URL*/
-    // char **info = malloc(sizeof(char) * 0);
     char *info[MAXSIZE];
     int i = 0;
     while (token != NULL) {
-        // info = realloc(info, sizeof(char) * (i + 1));
-        // printf("%s\n", token);
         info[i] = token;
         token = strtok(NULL, "/");
         i++;
     }
 
     // i indicates the number of elements or tokens in the info arr
-    /* A url needs to have http and hostname as a minimum */
-    // if (i < 2) {
-    //     printf("Please enter a valid URL!\n");
-    //     usage(argv[0]);
-    // }
+    // A url needs to have http and hostname as a minimum
+    if (i < 2) {
+        printf("Please enter a valid URL!\n");
+        usage(argv[0]);
+    }
 
-    printf("num of elems : %d\n", i);
-    // while (i--) {
-    //     printf("%s\n", info[i]);
-    // }
-
-    // printf("%s\n", info[i]);
     /* Set HOSTNAME and WEB_FILENAME */
     HOSTNAME = info[1];  // info[0] contains http:
-    // // e.g. http://ll/mo/
-    // char *temp = malloc(sizeof(char) * (2 * i + 1));
-    // if (i == 2) {
-    //     temp = "/";
-    // } else {
-    //     for (int j = 0; j < i; j += 1) {
-    //         printf("Current elem: %s\n", info[i]);
-    //         strcat(temp, "/");
-    //         strcat(temp, info[i]);
-    //     }
-    //     strcat(temp, "/");
-    // }
-
-    // WEB_FILENAME = temp;
-    // printf("WEB_FILENAME : %s\n", WEB_FILENAME);
-    printf("HOSTNAME: %s\n", HOSTNAME);
-
     char temp[MAXSIZE];
     strcat(temp, "/");
     for (int j = 2; j < i; j++) {
         strcat(temp, info[j]);
         strcat(temp, "/");
     }
-    printf("temp: %s\n", temp);
+    WEB_FILENAME = temp;
+
+    /* if -i is specified in cmd line, we print INF */
+    if (PRINT_INFO) {
+        printf("INF: hostname = %s\n", HOSTNAME);
+        printf("INF: web_filename = %s\n", WEB_FILENAME);
+        printf("INF: output_filename = %s\n", OUTPUT_FILENAME);
+    }
 
     // -----
     /* Get all of the non-option arguments */
