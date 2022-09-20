@@ -17,6 +17,11 @@
 #define PROTOCOL "tcp"
 #define BUFLEN 1024
 #define MAXSIZE 1024
+#define REQ_TYPE "GET "
+#define HTTP_VERSION " HTTP/1.0\r\n"
+#define SENDER "Host: "
+#define CARRIAGE "\r\n"
+#define CLIENT "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
 
 int usage(char *progname) {
     fprintf(stderr, "usage: %s -u URL [-i] [-c] [-s] -o filename\n", progname);
@@ -125,6 +130,32 @@ int main(int argc, char *argv[]) {
         printf("INF: hostname = %s\n", HOSTNAME);
         printf("INF: web_filename = %s\n", WEB_FILENAME);
         printf("INF: output_filename = %s\n", OUTPUT_FILENAME);
+    }
+
+    /* Initialising a get request to the hostname and web_filename specified by user */
+    int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
+    char REQUEST[MAXSIZE] = "GET ";
+    strcat(REQUEST, WEB_FILENAME);
+    strcat(REQUEST, " HTTP/1.0\r\n");
+    strcat(REQUEST, "Host: ");
+    strcat(REQUEST, HOSTNAME);
+    strcat(REQUEST, "\r\n");
+    strcat(REQUEST, "User-Agent: CWRU CSDS 325 Client 1.0\r\n");
+    strcat(REQUEST, "\r\n");
+    // "GET"  WEB_FILENAME
+    // "HTTP/1.0\r\n"
+    // "Host: [hostname]\r\n"
+    // "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
+    // "\r\n";
+    // printf("%d\n", length_needed);
+    // printf("%s\n", REQUEST);
+    char req_copy[length_needed + 1];
+    strcpy(req_copy, REQUEST);
+    char *line;
+    line = strtok(req_copy, "\r\n");
+    while (line != NULL) {
+        printf("REQ: %s\n", line);
+        line = strtok(NULL, "\r\n");
     }
 
     // -----
