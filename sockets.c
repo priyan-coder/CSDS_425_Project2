@@ -12,8 +12,8 @@
 
 #define ERROR 1
 #define REQUIRED_ARGC 5
-#define HOST_POS 1
-#define PORT_POS 2
+// #define HOST_POS 1
+#define PORT_POS 80
 #define PROTOCOL "tcp"
 #define BUFLEN 1024
 #define MAXSIZE 1024
@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     bool FILENAME_PARSED = false;  // flag to check if user entered filename argument after -o
     bool URL_PARSED = false;       // flag to check if user entered URL argument after -u
     char *url = NULL;              // to save the entire url which user enters on cmd line
-    char *HOSTNAME = NULL;         // hostname of the server
+    // char *HOSTNAME = NULL;         // hostname of the server
     char *WEB_FILENAME = NULL;     // path to file in web server
     char *OUTPUT_FILENAME = NULL;  // write to file in local system
     bool PRINT_INFO = false;       // flag to check if user entered -i on the cmd line
@@ -90,21 +90,19 @@ int main(int argc, char *argv[]) {
     }
 
     /* Convert to lowercase */
-    char *endpoint = malloc((sizeof(url) + 1) * sizeof(char));
-    strcpy(endpoint, url);
     for (int i = 0; i < strlen(url); i++) {
-        endpoint[i] = tolower(endpoint[i]);  // each elem is a character
+        url[i] = tolower(url[i]);  // each elem is a character
     }
 
     /* Check for Http only */
-    char *token = strtok(endpoint, "/");
+    char *token = strtok(url, "/");
     if ((strcmp(token, "http:")) != 0) {
         printf("Only Http is supported\n");
         exit(1);
     }
 
     /* Tokenize the URL*/
-    char *info[MAXSIZE];
+    char **info = malloc(sizeof(char *) * MAXSIZE);
     int i = 0;
     while (token != NULL) {
         info[i] = token;
@@ -120,8 +118,9 @@ int main(int argc, char *argv[]) {
     }
 
     /* Set HOSTNAME and WEB_FILENAME */
-    HOSTNAME = info[1];  // info[0] contains http:
-    char temp[MAXSIZE];
+    char *HOSTNAME = malloc(strlen(info[1]) + 1);
+    memcpy(HOSTNAME, info[1], strlen(info[1]));
+    char *temp = malloc(MAXSIZE);
     strcat(temp, "/");
     for (int j = 2; j < i; j++) {
         strcat(temp, info[j]);
@@ -137,7 +136,9 @@ int main(int argc, char *argv[]) {
     }
 
     /* Initialising a GET request to the hostname and web_filename specified by user */
-    char REQUEST[MAXSIZE] = REQ_TYPE;
+    int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
+    char *REQUEST = malloc(length_needed + 1);
+    strcat(REQUEST, REQ_TYPE);
     strcat(REQUEST, WEB_FILENAME);
     strcat(REQUEST, HTTP_VERSION);
     strcat(REQUEST, SENDER);
@@ -148,7 +149,6 @@ int main(int argc, char *argv[]) {
 
     /* If user specified -c on the command line, PRINT_REQ is set to true and the following will be executed to print the request*/
     if (PRINT_REQ) {
-        int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
         char req_copy[length_needed + 1];
         strcpy(req_copy, REQUEST);
         char *line;
@@ -159,47 +159,49 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // -----
-    /* Get all of the non-option arguments */
-    // if (optind < argc) {
-    //     printf("Non-option args: ");
-    //     while (optind < argc)
-    //         printf("%s ", argv[optind++]);
-    //     printf("\n");
-    // }
+    /* lookup the hostname */
+    printf("Looking up this hostname: %s\n", HOSTNAME);
+    hinfo = gethostbyname(HOSTNAME);
+    printf("hostname: %s\n", HOSTNAME);
+    if (hinfo == NULL)
+        errexit("cannot find name: %s", HOSTNAME);
 
-    // /* lookup the hostname */
-    // hinfo = gethostbyname(argv[HOST_POS]);
-    // if (hinfo == NULL)
-    //     errexit("cannot find name: %s", argv[HOST_POS]);
+    /* set endpoint information */
+    memset((char *)&sin, 0x0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(PORT_POS);
+    memcpy((char *)&sin.sin_addr, hinfo->h_addr, hinfo->h_length);
 
-    // /* set endpoint information */
-    // memset((char *)&sin, 0x0, sizeof(sin));
-    // sin.sin_family = AF_INET;
-    // sin.sin_port = htons(atoi(argv[PORT_POS]));
-    // memcpy((char *)&sin.sin_addr, hinfo->h_addr, hinfo->h_length);
+    if ((protoinfo = getprotobyname(PROTOCOL)) == NULL)
+        errexit("cannot find protocol information for %s", PROTOCOL);
 
-    // if ((protoinfo = getprotobyname(PROTOCOL)) == NULL)
-    //     errexit("cannot find protocol information for %s", PROTOCOL);
+    /* allocate a socket */
+    /*   would be SOCK_DGRAM for UDP */
+    sd = socket(PF_INET, SOCK_STREAM, protoinfo->p_proto);
+    if (sd < 0)
+        errexit("cannot create socket", NULL);
 
-    // /* allocate a socket */
-    // /*   would be SOCK_DGRAM for UDP */
-    // sd = socket(PF_INET, SOCK_STREAM, protoinfo->p_proto);
-    // if (sd < 0)
-    //     errexit("cannot create socket", NULL);
+    /* connect the socket */
+    if (connect(sd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+        errexit("cannot connect", NULL);
 
-    // /* connect the socket */
-    // if (connect(sd, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-    //     errexit("cannot connect", NULL);
+    int sent = send(sd, REQUEST, strlen(REQUEST), 0);
+    if (sent < 0) {
+        printf("cannot send GET request");
+    }
 
-    // /* snarf whatever server provides and print it */
-    // memset(buffer, 0x0, BUFLEN);
-    // ret = read(sd, buffer, BUFLEN - 1);
-    // if (ret < 0)
-    //     errexit("reading error", NULL);
-    // fprintf(stdout, "%s\n", buffer);
+    /* snarf whatever server provides and print it */
+    memset(buffer, 0x0, BUFLEN);
+    ret = read(sd, buffer, BUFLEN - 1);
+    if (ret < 0)
+        errexit("reading error", NULL);
+    fprintf(stdout, "%s\n", buffer);
 
-    // /* close & exit */
-    // close(sd);
-    // exit(0);
+    /* close & exit */
+    // free(endpoint);
+    free(REQUEST);
+    free(temp);
+    free(info);
+    close(sd);
+    exit(0);
 }
