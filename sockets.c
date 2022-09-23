@@ -47,6 +47,7 @@ int main(int argc, char *argv[]) {
     char *WEB_FILENAME = NULL;     // path to file in web server
     char *OUTPUT_FILENAME = NULL;  // write to file in local system
     bool PRINT_INFO = false;       // flag to check if user entered -i on the cmd line
+    bool PRINT_REQ = false;        // flag to check if user entered -c on the cmd line
 
     if (argc < REQUIRED_ARGC) {
         usage(argv[0]);
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
 
     while (optind < argc) {
         //  To disable the automatic error printing, simply put a colon as the first character in optstring:
-        if ((opt = getopt(argc, argv, ":u:o:i")) != -1) {
+        if ((opt = getopt(argc, argv, ":u:o:ic")) != -1) {
             switch (opt) {
                 case 'o':
                     FILENAME_PARSED = true;
@@ -66,6 +67,9 @@ int main(int argc, char *argv[]) {
                     break;
                 case 'i':
                     PRINT_INFO = true;
+                    break;
+                case 'c':
+                    PRINT_REQ = true;
                     break;
                 case '?':
                     printf("Unknown option: %c\n", optopt);
@@ -132,30 +136,27 @@ int main(int argc, char *argv[]) {
         printf("INF: output_filename = %s\n", OUTPUT_FILENAME);
     }
 
-    /* Initialising a get request to the hostname and web_filename specified by user */
-    int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
-    char REQUEST[MAXSIZE] = "GET ";
+    /* Initialising a GET request to the hostname and web_filename specified by user */
+    char REQUEST[MAXSIZE] = REQ_TYPE;
     strcat(REQUEST, WEB_FILENAME);
-    strcat(REQUEST, " HTTP/1.0\r\n");
-    strcat(REQUEST, "Host: ");
+    strcat(REQUEST, HTTP_VERSION);
+    strcat(REQUEST, SENDER);
     strcat(REQUEST, HOSTNAME);
-    strcat(REQUEST, "\r\n");
-    strcat(REQUEST, "User-Agent: CWRU CSDS 325 Client 1.0\r\n");
-    strcat(REQUEST, "\r\n");
-    // "GET"  WEB_FILENAME
-    // "HTTP/1.0\r\n"
-    // "Host: [hostname]\r\n"
-    // "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
-    // "\r\n";
-    // printf("%d\n", length_needed);
-    // printf("%s\n", REQUEST);
-    char req_copy[length_needed + 1];
-    strcpy(req_copy, REQUEST);
-    char *line;
-    line = strtok(req_copy, "\r\n");
-    while (line != NULL) {
-        printf("REQ: %s\n", line);
-        line = strtok(NULL, "\r\n");
+    strcat(REQUEST, CARRIAGE);
+    strcat(REQUEST, CLIENT);
+    strcat(REQUEST, CARRIAGE);
+
+    /* If user specified -c on the command line, PRINT_REQ is set to true and the following will be executed to print the request*/
+    if (PRINT_REQ) {
+        int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
+        char req_copy[length_needed + 1];
+        strcpy(req_copy, REQUEST);
+        char *line;
+        line = strtok(req_copy, "\r\n");
+        while (line != NULL) {
+            printf("REQ: %s\n", line);
+            line = strtok(NULL, "\r\n");
+        }
     }
 
     // -----
