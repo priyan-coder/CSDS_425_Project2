@@ -16,16 +16,31 @@
 #define HTTP_VERSION_ERR "Only Http is supported\n"
 #define INCORRECT_URL "Please enter a valid URL!\n"
 #define RESPONSE_CODE_ERR "ERROR: non-200 response code\n"
+#define IO_ERR "Input Output Error while writing to a file!\n"
 #define PORT_POS 80
 #define PROTOCOL "tcp"
 #define BUFLEN 1024
 #define MAXSIZE 1024
+#define BUFFER_SIZE 4096
 #define REQ_TYPE "GET "
 #define HTTP_VERSION " HTTP/1.0\r\n"
 #define SENDER "Host: "
 #define CARRIAGE "\r\n"
 #define CLIENT "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
 
+int storeWebData(char *filepath, char *data) {
+    int r = 0;
+    FILE *fp = fopen(filepath, "w+");
+    char *body = strstr(data, "\r\n\r\n");
+    if (fp != NULL) {
+        // printf("%s\n", body);
+        if (fputs(body, fp) != EOF) {
+            r = 1;
+        }
+        fclose(fp);
+    }
+    return r;
+}
 /* Incorrect syntax routine */
 int usage(char *progname) {
     fprintf(stderr, "usage: %s -u URL [-i] [-c] [-s] -o filename\n", progname);
@@ -42,7 +57,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in sin;
     struct hostent *hinfo;
     struct protoent *protoinfo;
-    char buffer[BUFLEN];
+    char buffer[BUFFER_SIZE];
     int sd, ret, opt;
     char *url = NULL;              // to save the entire url which user enters on cmd line
     char *OUTPUT_FILENAME = NULL;  // write to file in local system
@@ -214,7 +229,7 @@ int main(int argc, char *argv[]) {
     }
     if (PRINT_RES) {
         while (headerrow != NULL) {
-            printf("RES: %s\n", headerrow);
+            printf("RSP: %s\n", headerrow);
             headerrow = strtok(NULL, "\r\n");
             if ((strstr(headerrow, "doctype") != NULL) || (strstr(headerrow, "DOCTYPE")) != NULL) {
                 break;
@@ -224,6 +239,12 @@ int main(int argc, char *argv[]) {
 
     if (!SERVER_STATUS) {
         printf(RESPONSE_CODE_ERR);
+    } else {
+        // handle -o and write body of server response to file
+        int res = storeWebData(OUTPUT_FILENAME, buffer);
+        if (res == 0) {
+            printf(IO_ERR);
+        }
     }
 
     /* close & exit */
