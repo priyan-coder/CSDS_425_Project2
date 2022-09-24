@@ -12,7 +12,10 @@
 
 #define ERROR 1
 #define REQUIRED_ARGC 5
-// #define HOST_POS 1
+#define MANDATORY_ERR "Mandatory args missing!\n"
+#define HTTP_VERSION_ERR "Only Http is supported\n"
+#define INCORRECT_URL "Please enter a valid URL!\n"
+#define RESPONSE_CODE_ERR "ERROR: non-200 response code\n"
 #define PORT_POS 80
 #define PROTOCOL "tcp"
 #define BUFLEN 1024
@@ -23,6 +26,7 @@
 #define CARRIAGE "\r\n"
 #define CLIENT "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
 
+/* Incorrect syntax routine */
 int usage(char *progname) {
     fprintf(stderr, "usage: %s -u URL [-i] [-c] [-s] -o filename\n", progname);
     exit(ERROR);
@@ -40,22 +44,23 @@ int main(int argc, char *argv[]) {
     struct protoent *protoinfo;
     char buffer[BUFLEN];
     int sd, ret, opt;
-    bool FILENAME_PARSED = false;  // flag to check if user entered filename argument after -o
-    bool URL_PARSED = false;       // flag to check if user entered URL argument after -u
     char *url = NULL;              // to save the entire url which user enters on cmd line
-    // char *HOSTNAME = NULL;         // hostname of the server
-    char *WEB_FILENAME = NULL;     // path to file in web server
     char *OUTPUT_FILENAME = NULL;  // write to file in local system
     bool PRINT_INFO = false;       // flag to check if user entered -i on the cmd line
     bool PRINT_REQ = false;        // flag to check if user entered -c on the cmd line
+    bool PRINT_RES = false;        // flag to check if user entered -s on the cmd line
+    bool FILENAME_PARSED = false;  // flag to check if user entered filename argument after -o
+    bool URL_PARSED = false;       // flag to check if user entered URL argument after -u
+    bool SERVER_STATUS = false;    // check if recv 200 OK resp from server
 
+    /* Check for minimum num of arguments */
     if (argc < REQUIRED_ARGC) {
         usage(argv[0]);
     }
 
     while (optind < argc) {
         //  To disable the automatic error printing, simply put a colon as the first character in optstring:
-        if ((opt = getopt(argc, argv, ":u:o:ic")) != -1) {
+        if ((opt = getopt(argc, argv, ":u:o:ics")) != -1) {
             switch (opt) {
                 case 'o':
                     FILENAME_PARSED = true;
@@ -71,6 +76,9 @@ int main(int argc, char *argv[]) {
                 case 'c':
                     PRINT_REQ = true;
                     break;
+                case 's':
+                    PRINT_RES = true;
+                    break;
                 case '?':
                     printf("Unknown option: %c\n", optopt);
                     break;
@@ -84,8 +92,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Mandatory arguments check */
     if (!FILENAME_PARSED || !URL_PARSED) {
-        printf("Mandatory args missing!\n");
+        printf(MANDATORY_ERR);
         usage(argv[0]);
     }
 
@@ -97,7 +106,7 @@ int main(int argc, char *argv[]) {
     /* Check for Http only */
     char *token = strtok(url, "/");
     if ((strcmp(token, "http:")) != 0) {
-        printf("Only Http is supported\n");
+        printf(HTTP_VERSION_ERR);
         exit(1);
     }
 
@@ -113,20 +122,19 @@ int main(int argc, char *argv[]) {
     // i indicates the number of elements or tokens in the info arr
     // A url needs to have http and hostname as a minimum
     if (i < 2) {
-        printf("Please enter a valid URL!\n");
+        printf(INCORRECT_URL);
         usage(argv[0]);
     }
 
     /* Set HOSTNAME and WEB_FILENAME */
-    char *HOSTNAME = malloc(strlen(info[1]) + 1);
+    char *HOSTNAME = malloc(strlen(info[1]) + 1);  // hostname of the server, info[0] is http:
+    char *WEB_FILENAME = malloc(2 * i);            // path to file in web server
     memcpy(HOSTNAME, info[1], strlen(info[1]));
-    char *temp = malloc(MAXSIZE);
-    strcat(temp, "/");
+    strcat(WEB_FILENAME, "/");
     for (int j = 2; j < i; j++) {
-        strcat(temp, info[j]);
-        strcat(temp, "/");
+        strcat(WEB_FILENAME, info[j]);
+        strcat(WEB_FILENAME, "/");
     }
-    WEB_FILENAME = temp;
 
     /* if -i is specified in cmd line, we print INF */
     if (PRINT_INFO) {
@@ -160,9 +168,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* lookup the hostname */
-    printf("Looking up this hostname: %s\n", HOSTNAME);
     hinfo = gethostbyname(HOSTNAME);
-    printf("hostname: %s\n", HOSTNAME);
     if (hinfo == NULL)
         errexit("cannot find name: %s", HOSTNAME);
 
@@ -195,12 +201,35 @@ int main(int argc, char *argv[]) {
     ret = read(sd, buffer, BUFLEN - 1);
     if (ret < 0)
         errexit("reading error", NULL);
+
     fprintf(stdout, "%s\n", buffer);
 
+    /* Check if status 200 OK is in buffer and print RESP if -s present on cmd line*/
+    char copy_of_buffer[BUFLEN];
+    memcpy(copy_of_buffer, buffer, BUFLEN);
+    char *headerrow = strtok(copy_of_buffer, "\r\n");
+
+    if (strstr(headerrow, "200 OK") != NULL) {
+        SERVER_STATUS = true;
+    }
+    if (PRINT_RES) {
+        while (headerrow != NULL) {
+            printf("RES: %s\n", headerrow);
+            headerrow = strtok(NULL, "\r\n");
+            if ((strstr(headerrow, "doctype") != NULL) || (strstr(headerrow, "DOCTYPE")) != NULL) {
+                break;
+            }
+        }
+    }
+
+    if (!SERVER_STATUS) {
+        printf(RESPONSE_CODE_ERR);
+    }
+
     /* close & exit */
-    // free(endpoint);
     free(REQUEST);
-    free(temp);
+    free(WEB_FILENAME);
+    free(HOSTNAME);
     free(info);
     close(sd);
     exit(0);
