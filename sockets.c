@@ -19,9 +19,7 @@
 #define IO_ERR "Input Output Error while writing to a file!\n"
 #define PORT_POS 80
 #define PROTOCOL "tcp"
-#define BUFLEN 1024
-#define MAXSIZE 1024
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 1024
 #define REQ_TYPE "GET "
 #define HTTP_VERSION " HTTP/1.0\r\n"
 #define SENDER "Host: "
@@ -34,7 +32,7 @@ int storeWebData(char *filepath, char *data) {
     char *body = strstr(data, "\r\n\r\n");
     if (fp != NULL) {
         // printf("%s\n", body);
-        if (fputs(body, fp) != EOF) {
+        if (fputs(body + 4, fp) != EOF) {
             r = 1;
         }
         fclose(fp);
@@ -57,7 +55,6 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in sin;
     struct hostent *hinfo;
     struct protoent *protoinfo;
-    char buffer[BUFFER_SIZE];
     int sd, ret, opt;
     char *url = NULL;              // to save the entire url which user enters on cmd line
     char *OUTPUT_FILENAME = NULL;  // write to file in local system
@@ -126,7 +123,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Tokenize the URL*/
-    char **info = malloc(sizeof(char *) * MAXSIZE);
+    char **info = malloc(sizeof(char *) * BUFFER_SIZE);
     int i = 0;
     while (token != NULL) {
         info[i] = token;
@@ -158,6 +155,8 @@ int main(int argc, char *argv[]) {
         printf("INF: output_filename = %s\n", OUTPUT_FILENAME);
     }
 
+    // need to refactor from here in order to implement f
+    // while (1) {
     /* Initialising a GET request to the hostname and web_filename specified by user */
     int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
     char *REQUEST = malloc(length_needed + 1);
@@ -211,22 +210,38 @@ int main(int argc, char *argv[]) {
         printf("cannot send GET request");
     }
 
-    /* snarf whatever server provides and print it */
-    memset(buffer, 0x0, BUFLEN);
-    ret = read(sd, buffer, BUFLEN - 1);
+    /* snarf whatever server provides */
+    char *buffer = malloc(BUFFER_SIZE * sizeof(char));
+    memset(buffer, 0x0, BUFFER_SIZE * sizeof(char));
+    int n = 0;
+    while ((ret = read(sd, buffer + n, BUFFER_SIZE - 1)) > 0) {
+        n += ret;
+        buffer = (char *)realloc(buffer, BUFFER_SIZE + BUFFER_SIZE);
+        if (buffer == NULL) {
+            printf("cannot realloc buffer memory\n");
+        }
+    }
+    buffer[n] = '\0';
+    printf("%s\n", buffer);
+
     if (ret < 0)
         errexit("reading error", NULL);
 
-    fprintf(stdout, "%s\n", buffer);
+    // fprintf(stdout, "%s\n", buffer);
 
     /* Check if status 200 OK is in buffer and print RESP if -s present on cmd line*/
-    char copy_of_buffer[BUFLEN];
-    memcpy(copy_of_buffer, buffer, BUFLEN);
+    char *copy_of_buffer = malloc(n * sizeof(char));
+    memset(copy_of_buffer, 0x0, n);
+    memcpy(copy_of_buffer, buffer, n);
     char *headerrow = strtok(copy_of_buffer, "\r\n");
+    // while (strstr(headerrow, "301") != NULL) {
+
+    // }
 
     if (strstr(headerrow, "200 OK") != NULL) {
         SERVER_STATUS = true;
     }
+
     if (PRINT_RES) {
         while (headerrow != NULL) {
             printf("RSP: %s\n", headerrow);
@@ -239,19 +254,24 @@ int main(int argc, char *argv[]) {
 
     if (!SERVER_STATUS) {
         printf(RESPONSE_CODE_ERR);
+
     } else {
         // handle -o and write body of server response to file
         int res = storeWebData(OUTPUT_FILENAME, buffer);
         if (res == 0) {
             printf(IO_ERR);
+            exit(1);
         }
     }
+    // }
 
     /* close & exit */
     free(REQUEST);
     free(WEB_FILENAME);
     free(HOSTNAME);
     free(info);
+    free(buffer);
+    free(copy_of_buffer);
     close(sd);
     exit(0);
 }
