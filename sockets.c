@@ -142,10 +142,13 @@ int main(int argc, char *argv[]) {
     char *HOSTNAME = malloc(strlen(info[1]) + 1);  // hostname of the server, info[0] is http:
     char *WEB_FILENAME = malloc(2 * i);            // path to file in web server
     memcpy(HOSTNAME, info[1], strlen(info[1]));
-    strcat(WEB_FILENAME, "/");
-    for (int j = 2; j < i; j++) {
-        strcat(WEB_FILENAME, info[j]);
+    if (i == 2) {
         strcat(WEB_FILENAME, "/");
+    } else {
+        for (int j = 2; j < i; j++) {
+            strcat(WEB_FILENAME, "/");
+            strcat(WEB_FILENAME, info[j]);
+        }
     }
 
     /* if -i is specified in cmd line, we print INF */
@@ -242,15 +245,15 @@ int main(int argc, char *argv[]) {
         SERVER_STATUS = true;
     }
 
-    if (PRINT_RES) {
-        while (headerrow != NULL) {
-            printf("RSP: %s\n", headerrow);
-            headerrow = strtok(NULL, "\r\n");
-            if ((strstr(headerrow, "doctype") != NULL) || (strstr(headerrow, "DOCTYPE")) != NULL) {
-                break;
-            }
-        }
-    }
+    // if (PRINT_RES) {
+    //     while (headerrow != NULL) {
+    //         printf("RSP: %s\n", headerrow);
+    //         headerrow = strtok(NULL, "\r\n");
+    //         if ((strstr(headerrow, "doctype") != NULL) || (strstr(headerrow, "DOCTYPE")) != NULL) {
+    //             break;
+    //         }
+    //     }
+    // }
 
     if (!SERVER_STATUS) {
         printf(RESPONSE_CODE_ERR);
