@@ -237,31 +237,25 @@ int main(int argc, char *argv[]) {
     fprintf(stdout, "%s\n", buffer);
 
     /* Check if status 200 OK is in buffer and print RESP if -s present on cmd line*/
-    char *copy_of_buffer = malloc((n + 1) * sizeof(char));
-    memset(copy_of_buffer, 0x0, n + 1);
-    memcpy(copy_of_buffer, buffer, n);
-    char *headerrow = strtok(copy_of_buffer, "\r\n");
-    // while (strstr(headerrow, "301") != NULL) {
-
-    // }
-
-    if (strstr(headerrow, "200 OK") != NULL) {
+    char *ptr_to_buffer = buffer;
+    char *points_to_start_of_body = strstr(buffer, "\r\n\r\n");
+    char *header_copy = malloc((points_to_start_of_body - ptr_to_buffer + 1) * sizeof(char));
+    memset(header_copy, 0x0, (points_to_start_of_body - ptr_to_buffer + 1));
+    memcpy(header_copy, buffer, (points_to_start_of_body - ptr_to_buffer));
+    // printf("%s\n", header_copy);
+    char *each_header_token = strtok(header_copy, "\r\n");
+    if (strstr(each_header_token, "200 OK") != NULL) {
         SERVER_STATUS = true;
     }
-
-    // if (PRINT_RES) {
-    //     while (headerrow != NULL) {
-    //         printf("RSP: %s\n", headerrow);
-    //         headerrow = strtok(NULL, "\r\n");
-    //         if ((strstr(headerrow, "doctype") != NULL) || (strstr(headerrow, "DOCTYPE")) != NULL) {
-    //             break;
-    //         }
-    //     }
-    // }
+    if (PRINT_RES) {
+        while (each_header_token != NULL) {
+            printf("RSP: %s\n", each_header_token);
+            each_header_token = strtok(NULL, "\r\n");
+        }
+    }
 
     if (!SERVER_STATUS) {
         printf(RESPONSE_CODE_ERR);
-
     } else {
         // handle -o and write body of server response to file
         int res = storeWebData(OUTPUT_FILENAME, buffer);
@@ -270,7 +264,6 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
-    // }
 
     /* close & exit */
     free(REQUEST);
@@ -278,7 +271,7 @@ int main(int argc, char *argv[]) {
     free(HOSTNAME);
     free(info);
     free(buffer);
-    free(copy_of_buffer);
+    free(header_copy);
     close(sd);
     exit(0);
 }
