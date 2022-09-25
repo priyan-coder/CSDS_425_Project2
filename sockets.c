@@ -216,25 +216,29 @@ int main(int argc, char *argv[]) {
     /* snarf whatever server provides */
     char *buffer = malloc(BUFFER_SIZE * sizeof(char));
     memset(buffer, 0x0, BUFFER_SIZE * sizeof(char));
+    size_t new_size = BUFFER_SIZE;
     int n = 0;
     while ((ret = read(sd, buffer + n, BUFFER_SIZE - 1)) > 0) {
         n += ret;
-        buffer = (char *)realloc(buffer, BUFFER_SIZE + BUFFER_SIZE);
-        if (buffer == NULL) {
-            printf("cannot realloc buffer memory\n");
-        }
+        new_size += BUFFER_SIZE;
+        // char *new_buffer = (char *)realloc(buffer, new_size);
+        // if (new_buffer == NULL) {
+        //     printf("cannot realloc buffer memory\n");
+        //     exit(1);
     }
-    buffer[n] = '\0';
-    printf("%s\n", buffer);
+    // buffer = new_buffer;
+
+    // buffer[n] = '\0';
+    printf("n: %d\n buffer_size: %lu\n", n, sizeof(buffer));
 
     if (ret < 0)
         errexit("reading error", NULL);
 
-    // fprintf(stdout, "%s\n", buffer);
+    fprintf(stdout, "%s\n", buffer);
 
     /* Check if status 200 OK is in buffer and print RESP if -s present on cmd line*/
-    char *copy_of_buffer = malloc(n * sizeof(char));
-    memset(copy_of_buffer, 0x0, n);
+    char *copy_of_buffer = malloc((n + 1) * sizeof(char));
+    memset(copy_of_buffer, 0x0, n + 1);
     memcpy(copy_of_buffer, buffer, n);
     char *headerrow = strtok(copy_of_buffer, "\r\n");
     // while (strstr(headerrow, "301") != NULL) {
