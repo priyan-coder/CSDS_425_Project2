@@ -114,6 +114,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < strlen(url); i++) {
         url[i] = tolower(url[i]);  // each elem is a character
     }
+    char *copy_url = malloc(strlen(url) + 1);
+    strcpy(copy_url, url);
+    // printf("%s\n", copy_url);
+    // printf("%c\n", copy_url[strlen(copy_url) - 1]);
 
     /* Check for Http only */
     char *token = strtok(url, "/");
@@ -148,6 +152,10 @@ int main(int argc, char *argv[]) {
         for (int j = 2; j < i; j++) {
             strcat(WEB_FILENAME, "/");
             strcat(WEB_FILENAME, info[j]);
+        }
+        if (strcmp(&copy_url[strlen(copy_url) - 1], "/") == 0) {
+            // last char is a /
+            strcat(WEB_FILENAME, "/");
         }
     }
 
@@ -214,27 +222,31 @@ int main(int argc, char *argv[]) {
     }
 
     /* snarf whatever server provides */
-    char *buffer = malloc(BUFFER_SIZE * sizeof(char));
-    memset(buffer, 0x0, BUFFER_SIZE * sizeof(char));
+    char *buffer = malloc(BUFFER_SIZE);
+    memset(buffer, 0x0, BUFFER_SIZE);
     size_t new_size = BUFFER_SIZE;
     int n = 0;
     while ((ret = read(sd, buffer + n, BUFFER_SIZE - 1)) > 0) {
+        // printf("ret value: %d\n", ret);
         n += ret;
         new_size += BUFFER_SIZE;
-        // char *new_buffer = (char *)realloc(buffer, new_size);
-        // if (new_buffer == NULL) {
-        //     printf("cannot realloc buffer memory\n");
-        //     exit(1);
+        char *temp = realloc(buffer, new_size);
+        if (temp != NULL) {
+            buffer = temp;
+        } else {
+            printf("cannot realloc buffer memory while reading data\n");
+            exit(1);
+        }
     }
-    // buffer = new_buffer;
 
-    // buffer[n] = '\0';
-    printf("n: %d\n buffer_size: %lu\n", n, sizeof(buffer));
+    // printf("Last character in buffer: %c\n", buffer[strlen(buffer) - 1]);
+    // printf("sizes\nn: %d\nbuffer_size: %lu\nbuffer_length: %lu\n", n, sizeof(buffer), strlen(buffer));
 
-    if (ret < 0)
+    if (ret < 0) {
         errexit("reading error", NULL);
+    }
 
-    fprintf(stdout, "%s\n", buffer);
+    // fprintf(stdout, "%s\n", buffer);
 
     /* Check if status 200 OK is in buffer and print RESP if -s present on cmd line*/
     char *ptr_to_buffer = buffer;
@@ -242,7 +254,7 @@ int main(int argc, char *argv[]) {
     char *header_copy = malloc((points_to_start_of_body - ptr_to_buffer + 1) * sizeof(char));
     memset(header_copy, 0x0, (points_to_start_of_body - ptr_to_buffer + 1));
     memcpy(header_copy, buffer, (points_to_start_of_body - ptr_to_buffer));
-    // printf("%s\n", header_copy);
+    // printf("Length of header: %lu\n", strlen(header_copy));
     char *each_header_token = strtok(header_copy, "\r\n");
     if (strstr(each_header_token, "200 OK") != NULL) {
         SERVER_STATUS = true;
@@ -266,6 +278,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* close & exit */
+    free(copy_url);
     free(REQUEST);
     free(WEB_FILENAME);
     free(HOSTNAME);
