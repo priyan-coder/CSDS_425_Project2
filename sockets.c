@@ -40,11 +40,10 @@ int errexit(char *format, char *arg) {
 }
 /* Grabs hostname and web_filename from a given url. Returns 1 or -1 to indicate success or failure */
 int get_hostname_and_web_filename(char *url, char **hostname, char **web_filename) {
-    /* Convert to lowercase */
-    for (int i = 0; i < strlen(url); i++) {
-        url[i] = tolower(url[i]);  // each elem is a character
-    }
-
+    // /* Convert to lowercase */
+    // for (int i = 0; i < strlen(url); i++) {
+    //     url[i] = tolower(url[i]);  // each elem is a character
+    // }
     /* Creating a copy of the url for future web_filename re-creation */
     char *copy_url = malloc(strlen(url) + 1);
     strcpy(copy_url, url);
@@ -258,12 +257,12 @@ int main(int argc, char *argv[]) {
     /* Read data */
     if (SERVER_STATUS) {
         FILE *stream = fopen(OUTPUT_FILENAME, "w+");
-        while (1) {
-            if (feof(fp))
-                break;
-            fread(buffer, BUFFER_SIZE, sizeof(char), fp);
-            printf("%s", buffer);
-            fputs(buffer, stream);
+        int N = 0;
+        while (!feof(fp)) {
+            N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
+            // printf("%d\n", N);
+            // printf("%s", buffer);
+            fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
             memset(buffer, 0x0, BUFFER_SIZE);
         }
         fclose(stream);
