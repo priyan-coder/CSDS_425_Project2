@@ -17,19 +17,16 @@
 #define INCORRECT_URL "Please enter a valid URL!\n"
 #define RESPONSE_CODE_ERR "ERROR: non-200 response code\n"
 #define IO_ERR "Input Output Error while writing to a file!\n"
+#define MEM_ERR "Unable to realloc memory for: "
 #define PORT_POS 80
 #define PROTOCOL "tcp"
+#define STRINGSIZE 200
 #define BUFFER_SIZE 1024
 #define REQ_TYPE "GET "
 #define HTTP_VERSION " HTTP/1.0\r\n"
-#define SENDER "Host: "
+#define HOST "Host: "
 #define CARRIAGE "\r\n"
 #define CLIENT "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
-typedef struct get_inf {
-    // will contain hostname and web_filename if a proper url is entered
-    char *hostname;
-    char *web_filename;
-} get_inf;
 
 // int storeWebData(char *filepath, char *data) {
 //     int r = 0;
@@ -57,7 +54,7 @@ int errexit(char *format, char *arg) {
     exit(ERROR);
 }
 
-void get_hostname_and_web_filename(char *url, get_inf *dest) {
+int get_hostname_and_web_filename(char *url, char **hostname, char **web_filename) {
     /* Convert to lowercase */
     for (int i = 0; i < strlen(url); i++) {
         url[i] = tolower(url[i]);  // each elem is a character
@@ -84,37 +81,38 @@ void get_hostname_and_web_filename(char *url, get_inf *dest) {
         i++;
     }
 
-    dest->hostname = malloc(strlen(info[1]) + 1);  // hostname of the server, info[0] is http:
-    strncpy(dest->hostname, info[1], strlen(info[1]));
-    dest->web_filename = malloc(2 * i);  // path to file in web server
+    // char *tmp = realloc(dest->hostname, strlen(info[1]) + 1);  // hostname of the server, info[0] is http:
+    *hostname = realloc(*hostname, strlen(info[1]));
+    *web_filename = realloc(*web_filename, (2 * i));
+    if (*hostname == NULL)
+        return -1;
+    if (*web_filename == NULL)
+        return -1;
+
+    strncpy(*hostname, info[1], strlen(info[1]));
 
     if (i == 2) {
-        strcat(dest->web_filename, "/");
+        strncat(*web_filename, "/", strlen("/"));
     } else {
         for (int j = 2; j < i; j++) {
-            strcat(dest->web_filename, "/");
-            strcat(dest->web_filename, info[j]);
+            strncat(*web_filename, "/", strlen("/"));
+            strncat(*web_filename, info[j], strlen(info[j]));
         }
         if (strcmp(&copy_url[strlen(copy_url) - 1], "/") == 0) {
             // last char is a /
-            strcat(dest->web_filename, "/");
+            strncat(*web_filename, "/", strlen("/"));
         }
     }
     free(info);
     free(copy_url);
+    return 1;
 }
 
-void generate_request(char *host_name, char *web_filename, char *request) {
-    strcat(request, REQ_TYPE);
-    strcat(request, web_filename);
-    strcat(request, HTTP_VERSION);
-    strcat(request, SENDER);
-    strcat(request, host_name);
-    strcat(request, CARRIAGE);
-    strcat(request, CLIENT);
-    strcat(request, CARRIAGE);
+void print_info(char *hostname, char *web_filename, char *ouput_file) {
+    printf("INF: hostname = %s\n", hostname);
+    printf("INF: web_filename = %s\n", web_filename);
+    printf("INF: output_filename = %s\n", ouput_file);
 }
-
 int create_socket_and_send_request(char *host_name, char *request_to_server) {
     int sd;
     struct sockaddr_in sin;
@@ -154,6 +152,8 @@ int create_socket_and_send_request(char *host_name, char *request_to_server) {
 
 int main(int argc, char *argv[]) {
     int opt;
+    char *HOSTNAME = NULL;
+    char *WEB_FILENAME = NULL;
     char *url = NULL;              // to save the entire url which user enters on cmd line
     char *OUTPUT_FILENAME = NULL;  // write to this file in local system
     bool PRINT_INFO = false;       // flag to check if user entered -i on the cmd line
@@ -208,30 +208,31 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
-    /* parse_url and generate hostname and web_filename */
-    get_inf destination;
-    get_hostname_and_web_filename(url, &destination);
-    // printf("HOSTNAME: %s\n", destination.hostname);
-    // printf("WEB_FILENAME: %s\n", destination.web_filename);
-    /* Set HOSTNAME and WEB_FILENAME */
-    // int length_needed = strlen(REQ_TYPE) + strlen(web_filename) + strlen(HTTP_VERSION) + strlen(SENDER) + strlen(info[1]) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
-    // char *request = malloc(length_needed + 1);
+    /* parse_url, generate hostname, web_filename and GET req */
+    int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
+    if (host_file_status < 0) {
+        printf(MEM_ERR);
+    }
+    printf("hostname: %s\n", HOSTNAME);
+    printf("web_filename : %s\n", WEB_FILENAME);
 
+    int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
+    char *REQUEST = malloc(length_needed + 1);  // GET request
+    // strncat(REQUEST, REQ_TYPE, strlen(REQ_TYPE));
+    // strncat(REQUEST, WEB_FILENAME, strlen(WEB_FILENAME));
+    // strncat(REQUEST, HTTP_VERSION, strlen(HTTP_VERSION));
+    // strncat(REQUEST, HOST, strlen(HOST));
+    // strncat(REQUEST, HOSTNAME, strlen(HOSTNAME));
+    // strncat(REQUEST, CARRIAGE, strlen(CARRIAGE));
+    // strncat(REQUEST, CLIENT, strlen(CLIENT));
+    // strncat(REQUEST, CARRIAGE, strlen(CARRIAGE));
     /* if -i is specified in cmd line, we print INF */
-    // if (PRINT_INFO) {
-    //     printf("INF: hostname = %s\n", HOSTNAME);
-    //     printf("INF: web_filename = %s\n", WEB_FILENAME);
-    //     printf("INF: output_filename = %s\n", OUTPUT_FILENAME);
-    // }
-
-    // need to refactor from here in order to implement f
-    // while (1) {
-    /* Initialising a GET request to the hostname and web_filename specified by user */
-
+    // if (PRINT_INFO)
+    //     print_info(HOSTNAME, WEB_FILENAME, OUTPUT_FILENAME);
     /* If user specified -c on the command line, PRINT_REQ is set to true and the following will be executed to print the request*/
     // if (PRINT_REQ) {
-    //     char req_copy[length_needed + 1];
-    //     strcpy(req_copy, REQUEST);
+    //     char req_copy[req_len + 1];
+    //     strcpy(req_copy, destination.request);
     //     char *line;
     //     line = strtok(req_copy, "\r\n");
     //     while (line != NULL) {
@@ -309,8 +310,9 @@ int main(int argc, char *argv[]) {
     // }
 
     /* close & exit */
-    free(destination.web_filename);
-    free(destination.hostname);
+    free(WEB_FILENAME);
+    free(HOSTNAME);
+    // free(REQUEST);
     // free(buffer);
     // free(header_copy);
     // fclose(fp);
