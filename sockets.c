@@ -258,12 +258,13 @@ int main(int argc, char *argv[]) {
     /* Read data */
     if (SERVER_STATUS) {
         FILE *stream = fopen(OUTPUT_FILENAME, "w+");
-        while (fread(buffer, BUFFER_SIZE, sizeof(char), fp)) {
-            if (fp != NULL) {
-                printf("%s", buffer);
-                fputs(buffer, stream);
-                memset(buffer, 0, BUFFER_SIZE);
-            }
+        while (1) {
+            if (feof(fp))
+                break;
+            fread(buffer, BUFFER_SIZE, sizeof(char), fp);
+            printf("%s", buffer);
+            fputs(buffer, stream);
+            memset(buffer, 0x0, BUFFER_SIZE);
         }
         fclose(stream);
     }
