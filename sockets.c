@@ -20,7 +20,6 @@
 #define MEM_ERR "Unable to realloc memory for: "
 #define PORT_POS 80
 #define PROTOCOL "tcp"
-#define STRINGSIZE 200
 #define BUFFER_SIZE 1024
 #define REQ_TYPE "GET "
 #define HTTP_VERSION " HTTP/1.0\r\n"
@@ -108,10 +107,34 @@ int get_hostname_and_web_filename(char *url, char **hostname, char **web_filenam
     return 1;
 }
 
+void generate_req(char **hostname, char **web_filename, char *request) {
+    memset(request, 0, strlen(request));
+    strncat(request, REQ_TYPE, strlen(REQ_TYPE));
+    strncat(request, *web_filename, strlen(*web_filename));
+    strncat(request, HTTP_VERSION, strlen(HTTP_VERSION));
+    strncat(request, HOST, strlen(HOST));
+    strncat(request, *hostname, strlen(*hostname));
+    strncat(request, CARRIAGE, strlen(CARRIAGE));
+    strncat(request, CLIENT, strlen(CLIENT));
+    strncat(request, CARRIAGE, strlen(CARRIAGE));
+}
 void print_info(char *hostname, char *web_filename, char *ouput_file) {
     printf("INF: hostname = %s\n", hostname);
     printf("INF: web_filename = %s\n", web_filename);
     printf("INF: output_filename = %s\n", ouput_file);
+}
+
+void print_request(char *request) {
+    char *copy_req = malloc(strlen(request) + 1);
+    memset(copy_req, 0, strlen(request) + 1);
+    memcpy(copy_req, request, strlen(request));
+    char *line;
+    line = strtok(copy_req, "\r\n");
+    while (line != NULL) {
+        printf("REQ: %s\n", line);
+        line = strtok(NULL, "\r\n");
+    }
+    free(copy_req);
 }
 int create_socket_and_send_request(char *host_name, char *request_to_server) {
     int sd;
@@ -207,39 +230,20 @@ int main(int argc, char *argv[]) {
         printf(MANDATORY_ERR);
         usage(argv[0]);
     }
-
     /* parse_url, generate hostname, web_filename and GET req */
     int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
     if (host_file_status < 0) {
         printf(MEM_ERR);
     }
-    printf("hostname: %s\n", HOSTNAME);
-    printf("web_filename : %s\n", WEB_FILENAME);
-
     int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
-    char *REQUEST = malloc(length_needed + 1);  // GET request
-    // strncat(REQUEST, REQ_TYPE, strlen(REQ_TYPE));
-    // strncat(REQUEST, WEB_FILENAME, strlen(WEB_FILENAME));
-    // strncat(REQUEST, HTTP_VERSION, strlen(HTTP_VERSION));
-    // strncat(REQUEST, HOST, strlen(HOST));
-    // strncat(REQUEST, HOSTNAME, strlen(HOSTNAME));
-    // strncat(REQUEST, CARRIAGE, strlen(CARRIAGE));
-    // strncat(REQUEST, CLIENT, strlen(CLIENT));
-    // strncat(REQUEST, CARRIAGE, strlen(CARRIAGE));
+    char REQUEST[length_needed + 1];
+    generate_req(&HOSTNAME, &WEB_FILENAME, REQUEST);
     /* if -i is specified in cmd line, we print INF */
-    // if (PRINT_INFO)
-    //     print_info(HOSTNAME, WEB_FILENAME, OUTPUT_FILENAME);
+    if (PRINT_INFO)
+        print_info(HOSTNAME, WEB_FILENAME, OUTPUT_FILENAME);
     /* If user specified -c on the command line, PRINT_REQ is set to true and the following will be executed to print the request*/
-    // if (PRINT_REQ) {
-    //     char req_copy[req_len + 1];
-    //     strcpy(req_copy, destination.request);
-    //     char *line;
-    //     line = strtok(req_copy, "\r\n");
-    //     while (line != NULL) {
-    //         printf("REQ: %s\n", line);
-    //         line = strtok(NULL, "\r\n");
-    //     }
-    // }
+    if (PRINT_REQ)
+        print_request(REQUEST);
 
     /* snarf whatever server provides */
     // char *buffer = malloc(BUFFER_SIZE);
@@ -312,7 +316,6 @@ int main(int argc, char *argv[]) {
     /* close & exit */
     free(WEB_FILENAME);
     free(HOSTNAME);
-    // free(REQUEST);
     // free(buffer);
     // free(header_copy);
     // fclose(fp);
