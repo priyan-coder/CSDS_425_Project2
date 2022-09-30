@@ -167,6 +167,10 @@ int create_socket_and_send_request(char *hostname, char *request_to_server) {
     return sd;
 }
 
+// bool grab_server_header(){
+
+// }
+
 int main(int argc, char *argv[]) {
     int opt;  // option
     char *HOSTNAME = NULL;
@@ -176,6 +180,7 @@ int main(int argc, char *argv[]) {
     bool PRINT_INFO = false;       // flag to check if user entered -i on the cmd line
     bool PRINT_REQ = false;        // flag to check if user entered -c on the cmd line
     bool PRINT_RES = false;        // flag to check if user entered -s on the cmd line
+    bool ENABLE_REDIRECT = false;  // flag to check if user entered -f on the cmd line
     bool FILENAME_PARSED = false;  // flag to check if user entered filename argument after -o
     bool URL_PARSED = false;       // flag to check if user entered URL argument after -u
     bool SERVER_STATUS = false;    // check if recv 200 OK resp from server
@@ -187,7 +192,7 @@ int main(int argc, char *argv[]) {
 
     while (optind < argc) {
         //  To disable the automatic error printing, a colon is added as the first character in optstring:
-        if ((opt = getopt(argc, argv, ":u:o:ics")) != -1) {
+        if ((opt = getopt(argc, argv, ":u:o:icsf")) != -1) {
             switch (opt) {
                 case 'o':
                     FILENAME_PARSED = true;
@@ -205,6 +210,9 @@ int main(int argc, char *argv[]) {
                     break;
                 case 's':
                     PRINT_RES = true;
+                    break;
+                case 'f':
+                    ENABLE_REDIRECT = true;
                     break;
                 case '?':
                     printf("Unknown option: %c\n", optopt);
@@ -225,57 +233,118 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
-    /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
-    int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
-    if (host_file_status < 0)
-        printf(MEM_ERR);
-    int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
-    char REQUEST[length_needed + 1];
-    generate_req(&HOSTNAME, &WEB_FILENAME, REQUEST, OUTPUT_FILENAME, PRINT_INFO, PRINT_REQ);  // printing logic is also handled in here
-    int sd = create_socket_and_send_request(HOSTNAME, REQUEST);
+    while (1) {
+        /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
+        int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
+        if (host_file_status < 0)
+            printf(MEM_ERR);
+        int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
+        char REQUEST[length_needed + 1];
+        memset(REQUEST, 0, length_needed + 1);
+        generate_req(&HOSTNAME, &WEB_FILENAME, REQUEST, OUTPUT_FILENAME, PRINT_INFO, PRINT_REQ);  // printing logic is also handled in here
+        int sd = create_socket_and_send_request(HOSTNAME, REQUEST);
 
-    /* Grab server response */
-    char *buffer = malloc(BUFFER_SIZE);
-    memset(buffer, 0x0, BUFFER_SIZE);
-    FILE *fp = fdopen(sd, "r");
-    if (fp == NULL) {
-        printf("Unable to create a file descriptor to read socket\n");
-        exit(ERROR);
-    }
-    /* Prints header of server response if -s is specified on the cmd line. Reads header only */
-    while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
-        // if not 200 OK yet
-        if (!SERVER_STATUS) {
-            if (strstr(buffer, "200 OK") != NULL) {
-                SERVER_STATUS = true;
+        /* Create buffer and ensure file pointer is created to read socket */
+        char *buffer = malloc(BUFFER_SIZE);
+        memset(buffer, 0x0, BUFFER_SIZE);
+        FILE *fp = fdopen(sd, "r");
+        if (fp == NULL) {
+            printf("Unable to create a file descriptor to read socket\n");
+            exit(ERROR);
+        }
+
+        /* Prints header of server response if -s is specified on the cmd line. Reads header only */
+        while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
+            // if not 200 OK yet
+            if (!SERVER_STATUS) {
+                if (strstr(buffer, "200 OK") != NULL) {
+                    SERVER_STATUS = true;
+                }
+            }
+            if (PRINT_RES) {
+                printf("RSP: %s", buffer);
             }
         }
-        if (PRINT_RES) {
-            printf("RSP: %s", buffer);
+
+        /* Read data */
+        if (SERVER_STATUS) {
+            FILE *stream = fopen(OUTPUT_FILENAME, "w+");
+            int N = 0;
+            while (!feof(fp)) {
+                N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
+                // printf("%d\n", N);
+                // printf("%s", buffer);
+                fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
+                memset(buffer, 0x0, BUFFER_SIZE);
+            }
+            fclose(stream);
+        }
+
+        if (!SERVER_STATUS)
+            printf(RESPONSE_CODE_ERR);
+
+        if (ENABLE_REDIRECT == false) {
+            /* close & exit */
+            free(WEB_FILENAME);
+            free(HOSTNAME);
+            free(buffer);
+            fclose(fp);
+            close(sd);
+            break;
         }
     }
+
+    /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
+    // int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
+    // if (host_file_status < 0)
+    //     printf(MEM_ERR);
+    // int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
+    // char REQUEST[length_needed + 1];
+    // generate_req(&HOSTNAME, &WEB_FILENAME, REQUEST, OUTPUT_FILENAME, PRINT_INFO, PRINT_REQ);  // printing logic is also handled in here
+    // int sd = create_socket_and_send_request(HOSTNAME, REQUEST);
+
+    // /* Grab server response */
+    // char *buffer = malloc(BUFFER_SIZE);
+    // memset(buffer, 0x0, BUFFER_SIZE);
+    // FILE *fp = fdopen(sd, "r");
+    // if (fp == NULL) {
+    //     printf("Unable to create a file descriptor to read socket\n");
+    //     exit(ERROR);
+    // }
+    /* Prints header of server response if -s is specified on the cmd line. Reads header only */
+    // while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
+    //     // if not 200 OK yet
+    //     if (!SERVER_STATUS) {
+    //         if (strstr(buffer, "200 OK") != NULL) {
+    //             SERVER_STATUS = true;
+    //         }
+    //     }
+    //     if (PRINT_RES) {
+    //         printf("RSP: %s", buffer);
+    //     }
+    // }
     /* Read data */
-    if (SERVER_STATUS) {
-        FILE *stream = fopen(OUTPUT_FILENAME, "w+");
-        int N = 0;
-        while (!feof(fp)) {
-            N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
-            // printf("%d\n", N);
-            // printf("%s", buffer);
-            fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
-            memset(buffer, 0x0, BUFFER_SIZE);
-        }
-        fclose(stream);
-    }
+    // if (SERVER_STATUS) {
+    //     FILE *stream = fopen(OUTPUT_FILENAME, "w+");
+    //     int N = 0;
+    //     while (!feof(fp)) {
+    //         N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
+    //         // printf("%d\n", N);
+    //         // printf("%s", buffer);
+    //         fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
+    //         memset(buffer, 0x0, BUFFER_SIZE);
+    //     }
+    //     fclose(stream);
+    // }
 
-    if (!SERVER_STATUS)
-        printf(RESPONSE_CODE_ERR);
+    // if (!SERVER_STATUS)
+    //     printf(RESPONSE_CODE_ERR);
 
-    /* close & exit */
-    free(WEB_FILENAME);
-    free(HOSTNAME);
-    free(buffer);
-    fclose(fp);
-    close(sd);
+    // /* close & exit */
+    // free(WEB_FILENAME);
+    // free(HOSTNAME);
+    // free(buffer);
+    // fclose(fp);
+    // close(sd);
     exit(0);
 }
