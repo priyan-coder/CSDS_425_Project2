@@ -16,7 +16,7 @@
 #define HTTP_VERSION_ERR "Only Http is supported\n"
 #define INCORRECT_URL "Please enter a valid URL!\n"
 #define RESPONSE_CODE_ERR "ERROR: non-200 response code\n"
-#define IO_ERR "Input Output Error while writing to a file!\n"
+#define IO_ERR "Unable to create a file descriptor to read socket\n"
 #define MEM_ERR "Unable to realloc memory"
 #define PORT 80
 #define PROTOCOL "tcp"
@@ -26,6 +26,8 @@
 #define HOST "Host: "
 #define CARRIAGE "\r\n"
 #define CLIENT "User-Agent: CWRU CSDS 325 Client 1.0\r\n"
+#define STATUS_OK "200 OK"
+#define MOVED "301 Moved"
 
 /* Incorrect Syntax Routine */
 int usage(char *progname) {
@@ -40,10 +42,6 @@ int errexit(char *format, char *arg) {
 }
 /* Grabs hostname and web_filename from a given url. Returns 1 or -1 to indicate success or failure */
 int get_hostname_and_web_filename(char *url, char **hostname, char **web_filename) {
-    // /* Convert to lowercase */
-    // for (int i = 0; i < strlen(url); i++) {
-    //     url[i] = tolower(url[i]);  // each elem is a character
-    // }
     /* Creating a copy of the url for future web_filename re-creation */
     char *copy_url = malloc(strlen(url) + 1);
     strcpy(copy_url, url);
@@ -167,9 +165,48 @@ int create_socket_and_send_request(char *hostname, char *request_to_server) {
     return sd;
 }
 
-// bool grab_server_header(){
-
-// }
+/* Reads response header, prints if -s is specified on the command line. Returns status_200 and also updates status_301 */
+bool read_resp_header(FILE *fp, bool print_res, bool status_301) {
+    /* Prints header of server response if -s is specified on the cmd line. Reads header only */
+    bool status_code_check_done = false;
+    bool status_200 = false;
+    char *buffer = malloc(BUFFER_SIZE);
+    memset(buffer, 0x0, BUFFER_SIZE);
+    while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
+        if (!status_code_check_done) {
+            if (strstr(buffer, STATUS_OK) != NULL)
+                status_200 = true;
+            status_301 = false;
+            if (strstr(buffer, MOVED) != NULL)
+                status_301 = true;
+            status_code_check_done = true;
+        }
+        if (print_res)
+            printf("RSP: %s", buffer);
+    }
+    free(buffer);
+    return status_200;
+}
+/* Writes data to the output_filename */
+void write_data_to_file(char *output_filename, FILE *fp) {
+    FILE *stream = fopen(output_filename, "w+");
+    if (stream == NULL) {
+        printf(IO_ERR);
+        exit(ERROR);
+    }
+    int N = 0;
+    char *buffer = malloc(BUFFER_SIZE);
+    memset(buffer, 0x0, BUFFER_SIZE);
+    while (!feof(fp)) {
+        N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
+        // printf("%d\n", N);
+        // printf("%s", buffer);
+        fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
+        memset(buffer, 0x0, BUFFER_SIZE);
+    }
+    fclose(stream);
+    free(buffer);
+}
 
 int main(int argc, char *argv[]) {
     int opt;  // option
@@ -183,8 +220,6 @@ int main(int argc, char *argv[]) {
     bool ENABLE_REDIRECT = false;  // flag to check if user entered -f on the cmd line
     bool FILENAME_PARSED = false;  // flag to check if user entered filename argument after -o
     bool URL_PARSED = false;       // flag to check if user entered URL argument after -u
-    bool SERVER_STATUS = false;    // check if recv 200 OK resp from server
-
     /* Check for minimum num of arguments */
     if (argc < REQUIRED_ARGC) {
         usage(argv[0]);
@@ -233,61 +268,41 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
-    while (1) {
+    while (true) {
+        bool STATUS_301 = false;  // check if received 301 resp from server
+
         /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
         int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
         if (host_file_status < 0)
             printf(MEM_ERR);
+
         int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
         char REQUEST[length_needed + 1];
         memset(REQUEST, 0, length_needed + 1);
         generate_req(&HOSTNAME, &WEB_FILENAME, REQUEST, OUTPUT_FILENAME, PRINT_INFO, PRINT_REQ);  // printing logic is also handled in here
+
         int sd = create_socket_and_send_request(HOSTNAME, REQUEST);
 
         /* Create buffer and ensure file pointer is created to read socket */
-        char *buffer = malloc(BUFFER_SIZE);
-        memset(buffer, 0x0, BUFFER_SIZE);
         FILE *fp = fdopen(sd, "r");
         if (fp == NULL) {
-            printf("Unable to create a file descriptor to read socket\n");
+            printf(IO_ERR);
             exit(ERROR);
         }
-
-        /* Prints header of server response if -s is specified on the cmd line. Reads header only */
-        while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
-            // if not 200 OK yet
-            if (!SERVER_STATUS) {
-                if (strstr(buffer, "200 OK") != NULL) {
-                    SERVER_STATUS = true;
-                }
-            }
-            if (PRINT_RES) {
-                printf("RSP: %s", buffer);
-            }
-        }
-
-        /* Read data */
-        if (SERVER_STATUS) {
-            FILE *stream = fopen(OUTPUT_FILENAME, "w+");
-            int N = 0;
-            while (!feof(fp)) {
-                N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
-                // printf("%d\n", N);
-                // printf("%s", buffer);
-                fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
-                memset(buffer, 0x0, BUFFER_SIZE);
-            }
-            fclose(stream);
-        }
-
-        if (!SERVER_STATUS)
+        bool S_200 = read_resp_header(fp, PRINT_RES, STATUS_301);
+        // printf("Status 301: ");
+        // printf(STATUS_301 ? "true" : "false");
+        if (S_200) {
+            write_data_to_file(OUTPUT_FILENAME, fp);
+            ENABLE_REDIRECT = false;
+        } else {
             printf(RESPONSE_CODE_ERR);
+        }
 
-        if (ENABLE_REDIRECT == false) {
+        if (!ENABLE_REDIRECT) {
             /* close & exit */
             free(WEB_FILENAME);
             free(HOSTNAME);
-            free(buffer);
             fclose(fp);
             close(sd);
             break;
