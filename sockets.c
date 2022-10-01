@@ -268,11 +268,13 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
+    char *URL = malloc(strlen(url) + 1);
+    strncpy(URL, url, strlen(url));
     while (true) {
         bool STATUS_301 = false;  // check if received 301 resp from server
 
         /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
-        int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
+        int host_file_status = get_hostname_and_web_filename(URL, &HOSTNAME, &WEB_FILENAME);
         if (host_file_status < 0)
             printf(MEM_ERR);
 
@@ -297,69 +299,20 @@ int main(int argc, char *argv[]) {
             ENABLE_REDIRECT = false;
         } else {
             printf(RESPONSE_CODE_ERR);
+            if (!(STATUS_301 && ENABLE_REDIRECT)) {
+                exit(ERROR);
+            }
         }
 
         if (!ENABLE_REDIRECT) {
             /* close & exit */
-            free(WEB_FILENAME);
-            free(HOSTNAME);
             fclose(fp);
             close(sd);
             break;
         }
     }
-
-    /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
-    // int host_file_status = get_hostname_and_web_filename(url, &HOSTNAME, &WEB_FILENAME);
-    // if (host_file_status < 0)
-    //     printf(MEM_ERR);
-    // int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
-    // char REQUEST[length_needed + 1];
-    // generate_req(&HOSTNAME, &WEB_FILENAME, REQUEST, OUTPUT_FILENAME, PRINT_INFO, PRINT_REQ);  // printing logic is also handled in here
-    // int sd = create_socket_and_send_request(HOSTNAME, REQUEST);
-
-    // /* Grab server response */
-    // char *buffer = malloc(BUFFER_SIZE);
-    // memset(buffer, 0x0, BUFFER_SIZE);
-    // FILE *fp = fdopen(sd, "r");
-    // if (fp == NULL) {
-    //     printf("Unable to create a file descriptor to read socket\n");
-    //     exit(ERROR);
-    // }
-    /* Prints header of server response if -s is specified on the cmd line. Reads header only */
-    // while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
-    //     // if not 200 OK yet
-    //     if (!SERVER_STATUS) {
-    //         if (strstr(buffer, "200 OK") != NULL) {
-    //             SERVER_STATUS = true;
-    //         }
-    //     }
-    //     if (PRINT_RES) {
-    //         printf("RSP: %s", buffer);
-    //     }
-    // }
-    /* Read data */
-    // if (SERVER_STATUS) {
-    //     FILE *stream = fopen(OUTPUT_FILENAME, "w+");
-    //     int N = 0;
-    //     while (!feof(fp)) {
-    //         N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
-    //         // printf("%d\n", N);
-    //         // printf("%s", buffer);
-    //         fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
-    //         memset(buffer, 0x0, BUFFER_SIZE);
-    //     }
-    //     fclose(stream);
-    // }
-
-    // if (!SERVER_STATUS)
-    //     printf(RESPONSE_CODE_ERR);
-
-    // /* close & exit */
-    // free(WEB_FILENAME);
-    // free(HOSTNAME);
-    // free(buffer);
-    // fclose(fp);
-    // close(sd);
+    free(WEB_FILENAME);
+    free(HOSTNAME);
+    free(URL);
     exit(0);
 }
