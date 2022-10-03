@@ -50,19 +50,21 @@ int errexit(char *format, char *arg) {
 /* Grabs hostname and web_filename from a given url. Returns 1 or -1 to indicate success or failure */
 int get_hostname_and_web_filename(char *url, char **hostname, char **web_filename) {
     /* Creating a copy of the url for future web_filename re-creation */
-    char *copy_url = malloc(strlen(url) + 1);
+    // char *copy_url = malloc(strlen(url) + 1);
+    char copy_url[BUFFER_SIZE];
     strcpy(copy_url, url);
 
     /* Check for Http only */
     char *token = strtok(url, "/");
     if ((strcmp(token, "http:")) != 0) {
         printf(HTTP_VERSION_ERR);
-        free(copy_url);
+        // free(copy_url);
         exit(ERROR);
     }
 
     /* Tokenize the URL */
-    char **info = malloc(sizeof(char *) * BUFFER_SIZE);
+    // char **info = malloc(sizeof(char *) * BUFFER_SIZE);
+    char *info[BUFFER_SIZE];
     int i = 0;  // indicates the num of elems or tokens in info arr
     while (token != NULL) {
         info[i] = token;
@@ -92,8 +94,8 @@ int get_hostname_and_web_filename(char *url, char **hostname, char **web_filenam
             strcat(*web_filename, "/");
         }
     }
-    free(info);
-    free(copy_url);
+    // free(info);
+    // free(copy_url);
     return 1;
 }
 /* Prints info if -i is specified on the cmd line */
