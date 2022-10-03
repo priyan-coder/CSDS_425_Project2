@@ -1,3 +1,10 @@
+/* Name: BALASHANMUGA PRIYAN RAJAMOHAN
+ * Case ID: bxr261
+ * Filename: proj2.c
+ * Date created: 3 Oct 2022
+ * Description: The following code is used to read HTTP response from a server and write received data to a output file.
+ */
+
 #include <ctype.h>
 #include <netdb.h>
 #include <netinet/in.h>
