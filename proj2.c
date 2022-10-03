@@ -27,7 +27,7 @@
 #define MEM_ERR "Unable to realloc memory"
 #define PORT 80
 #define PROTOCOL "tcp"
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 512
 #define REQ_TYPE "GET "
 #define HTTP_VERSION " HTTP/1.0\r\n"
 #define HOST "Host: "
