@@ -173,7 +173,7 @@ int create_socket_and_send_request(char *hostname, char *request_to_server) {
 }
 
 /* Reads response header, prints if -s is specified on the command line. Returns status_200 and also updates status_301 */
-bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char **URL, char **hostname, char **web_filename) {
+bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char *URL, char **hostname, char **web_filename) {
     /* Prints header of server response if -s is specified on the cmd line. Reads header only */
     bool status_code_check_done = false;
     bool status_200 = false;
@@ -181,6 +181,8 @@ bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char **URL, ch
     char buffer[BUFFER_SIZE];
     memset(buffer, 0x0, BUFFER_SIZE);
     while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
+        if (print_res)
+            printf("RSP: %s", buffer);
         if (!status_code_check_done) {
             if (strstr(buffer, STATUS_OK) != NULL) {
                 status_200 = true;
@@ -193,13 +195,12 @@ bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char **URL, ch
         }
         if (*status_301 && (strstr(buffer, "Location") != NULL)) {
             buffer[strcspn(buffer, "\r\n")] = 0;
-            *URL = realloc(*URL, strlen(strstr(buffer, " ") + 1) + 1);
-            strncpy(*URL, strstr(buffer, " ") + 1, strlen(strstr(buffer, " ") + 1));
+            // *URL = realloc(*URL, strlen(strstr(buffer, " ") + 1) + 1);
+            memset(URL, 0x0, BUFFER_SIZE);
+            strncpy(URL, strstr(buffer, " ") + 1, strlen(strstr(buffer, " ") + 1));
             *hostname = NULL;
             *web_filename = NULL;
         }
-        if (print_res)
-            printf("RSP: %s", buffer);
     }
     // free(buffer);
     return status_200;
@@ -286,7 +287,9 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
-    char *URL = malloc(strlen(url) + 1);
+    // char *URL = malloc(strlen(url) + 1);
+    char URL[BUFFER_SIZE];
+    memset(URL, 0x0, BUFFER_SIZE);
     strncpy(URL, url, strlen(url));
     while (true) {
         bool STATUS_301 = false;  // check if received 301 resp from server
@@ -307,7 +310,7 @@ int main(int argc, char *argv[]) {
             printf(IO_ERR);
             exit(ERROR);
         }
-        bool S_200 = read_resp_header(fp, PRINT_RES, &STATUS_301, &URL, &HOSTNAME, &WEB_FILENAME);
+        bool S_200 = read_resp_header(fp, PRINT_RES, &STATUS_301, URL, &HOSTNAME, &WEB_FILENAME);
         if (S_200) {
             write_data_to_file(OUTPUT_FILENAME, fp);
             ENABLE_REDIRECT = false;
@@ -327,6 +330,6 @@ int main(int argc, char *argv[]) {
     }
     free(WEB_FILENAME);
     free(HOSTNAME);
-    free(URL);
+    // free(URL);
     exit(0);
 }
