@@ -81,15 +81,15 @@ int get_hostname_and_web_filename(char *url, char **hostname, char **web_filenam
     strncpy(*hostname, info[1], strlen(info[1]));
 
     if (i == 2) {
-        strncat(*web_filename, "/", strlen("/"));
+        strcat(*web_filename, "/");
     } else {
         for (int j = 2; j < i; j++) {
-            strncat(*web_filename, "/", strlen("/"));
-            strncat(*web_filename, info[j], strlen(info[j]));
+            strcat(*web_filename, "/");
+            strcat(*web_filename, info[j]);
         }
         if (strcmp(&copy_url[strlen(copy_url) - 1], "/") == 0) {
             // last char is a '/'
-            strncat(*web_filename, "/", strlen("/"));
+            strcat(*web_filename, "/");
         }
     }
     free(info);
@@ -118,14 +118,14 @@ void print_request(char *request) {
 /* Creates GET request and calls print handlers for info and req if conditions are met */
 void generate_req(char **hostname, char **web_filename, char *request, char *output_filename, bool info_print, bool req_print) {
     memset(request, 0, strlen(request));
-    strncat(request, REQ_TYPE, strlen(REQ_TYPE));
-    strncat(request, *web_filename, strlen(*web_filename));
-    strncat(request, HTTP_VERSION, strlen(HTTP_VERSION));
-    strncat(request, HOST, strlen(HOST));
-    strncat(request, *hostname, strlen(*hostname));
-    strncat(request, CARRIAGE, strlen(CARRIAGE));
-    strncat(request, CLIENT, strlen(CLIENT));
-    strncat(request, CARRIAGE, strlen(CARRIAGE));
+    strcat(request, REQ_TYPE);
+    strcat(request, *web_filename);
+    strcat(request, HTTP_VERSION);
+    strcat(request, HOST);
+    strcat(request, *hostname);
+    strcat(request, CARRIAGE);
+    strcat(request, CLIENT);
+    strcat(request, CARRIAGE);
     /* if -i is specified on the cmd line, we print INF */
     if (info_print)
         print_info(*hostname, *web_filename, output_filename);
