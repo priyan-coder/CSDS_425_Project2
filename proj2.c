@@ -177,7 +177,8 @@ bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char **URL, ch
     /* Prints header of server response if -s is specified on the cmd line. Reads header only */
     bool status_code_check_done = false;
     bool status_200 = false;
-    char *buffer = malloc(BUFFER_SIZE);
+    // char *buffer = malloc(BUFFER_SIZE);
+    char buffer[BUFFER_SIZE];
     memset(buffer, 0x0, BUFFER_SIZE);
     while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
         if (!status_code_check_done) {
@@ -200,7 +201,7 @@ bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char **URL, ch
         if (print_res)
             printf("RSP: %s", buffer);
     }
-    free(buffer);
+    // free(buffer);
     return status_200;
 }
 /* Writes data to the output_filename */
@@ -211,7 +212,8 @@ void write_data_to_file(char *output_filename, FILE *fp) {
         exit(ERROR);
     }
     int N = 0;
-    char *buffer = malloc(BUFFER_SIZE);
+    // char *buffer = malloc(BUFFER_SIZE);
+    char buffer[BUFFER_SIZE];
     memset(buffer, 0x0, BUFFER_SIZE);
     while (!feof(fp)) {
         N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
@@ -221,7 +223,7 @@ void write_data_to_file(char *output_filename, FILE *fp) {
         memset(buffer, 0x0, BUFFER_SIZE);
     }
     fclose(stream);
-    free(buffer);
+    // free(buffer);
 }
 
 int main(int argc, char *argv[]) {
