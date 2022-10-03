@@ -1,12 +1,16 @@
 
 CFLAGS=-g -Wall -Werror
 
-TARGETS=sockets #socketsd
+TARGETS=proj2 #socketsd
 
 all: $(TARGETS)
 
 clean:
 	rm -f $(TARGETS) 
 	rm -rf *.dSYM
+	rm -f *.html
+	rm -f *.png
+	rm -f *.jpg
+	rm -f *.bat
 
 distclean: clean
