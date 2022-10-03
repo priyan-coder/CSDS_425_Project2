@@ -50,7 +50,6 @@ int errexit(char *format, char *arg) {
 /* Grabs hostname and web_filename from a given url. Returns 1 or -1 to indicate success or failure */
 int get_hostname_and_web_filename(char *url, char *hostname, char *web_filename) {
     /* Creating a copy of the url for future web_filename re-creation */
-    // char *copy_url = malloc(strlen(url) + 1);
     char copy_url[BUFFER_SIZE];
     strcpy(copy_url, url);
 
@@ -63,7 +62,6 @@ int get_hostname_and_web_filename(char *url, char *hostname, char *web_filename)
     }
 
     /* Tokenize the URL */
-    // char **info = malloc(sizeof(char *) * BUFFER_SIZE);
     char *info[BUFFER_SIZE];
     int i = 0;  // indicates the num of elems or tokens in info arr
     while (token != NULL) {
@@ -73,14 +71,6 @@ int get_hostname_and_web_filename(char *url, char *hostname, char *web_filename)
     }
     memset(hostname, 0x0, BUFFER_SIZE);
     memset(web_filename, 0x0, BUFFER_SIZE);
-    // hostname of the server, info[0] is http:
-    // *hostname = realloc(*hostname, strlen(info[1]) + 1);
-    // *web_filename = realloc(*web_filename, (2 * i));
-    // if (*hostname == NULL)
-    //     return -1;
-    // if (*web_filename == NULL)
-    //     return -1;
-
     strncpy(hostname, info[1], strlen(info[1]));
 
     if (i == 2) {
@@ -95,8 +85,6 @@ int get_hostname_and_web_filename(char *url, char *hostname, char *web_filename)
             strcat(web_filename, "/");
         }
     }
-    // free(info);
-    // free(copy_url);
     return 1;
 }
 /* Prints info if -i is specified on the cmd line */
@@ -107,21 +95,23 @@ void print_info(char *hostname, char *web_filename, char *ouput_file) {
 }
 /* Prints GET request if -c is specified on the cmd line */
 void print_request(char *request, int length_needed) {
-    // char *copy_req = malloc(strlen(request) + 1);
-    // memset(copy_req, 0, strlen(request) + 1);
     char copy_req[length_needed + 1];
+    memset(copy_req, 0x0, strlen(copy_req));
     memcpy(copy_req, request, strlen(request));
     char *line;
     line = strtok(copy_req, "\r\n");
     while (line != NULL) {
         printf("REQ: %s\n", line);
+        // had to do this below because the request would have 0x0 for the remaining
+        if (strstr(line, "User-Agent") != NULL) {
+            break;
+        }
         line = strtok(NULL, "\r\n");
     }
-    // free(copy_req);
 }
 /* Creates GET request and calls print handlers for info and req if conditions are met */
 void generate_req(char *hostname, char *web_filename, char *request, char *output_filename, bool info_print, bool req_print, int length_needed) {
-    memset(request, 0, strlen(request));
+    memset(request, 0x0, strlen(request));
     strcat(request, REQ_TYPE);
     strcat(request, web_filename);
     strcat(request, HTTP_VERSION);
@@ -181,7 +171,6 @@ bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char *URL, cha
     /* Prints header of server response if -s is specified on the cmd line. Reads header only */
     bool status_code_check_done = false;
     bool status_200 = false;
-    // char *buffer = malloc(BUFFER_SIZE);
     char buffer[BUFFER_SIZE];
     memset(buffer, 0x0, BUFFER_SIZE);
     while (strcmp(fgets(buffer, BUFFER_SIZE, fp), CARRIAGE) != 0) {
@@ -199,14 +188,10 @@ bool read_resp_header(FILE *fp, bool print_res, bool *status_301, char *URL, cha
         }
         if (*status_301 && (strstr(buffer, "Location") != NULL)) {
             buffer[strcspn(buffer, "\r\n")] = 0;
-            // *URL = realloc(*URL, strlen(strstr(buffer, " ") + 1) + 1);
             memset(URL, 0x0, BUFFER_SIZE);
             strncpy(URL, strstr(buffer, " ") + 1, strlen(strstr(buffer, " ") + 1));
-            // *hostname = NULL;
-            // *web_filename = NULL;
         }
     }
-    // free(buffer);
     return status_200;
 }
 /* Writes data to the output_filename */
@@ -222,20 +207,18 @@ void write_data_to_file(char *output_filename, FILE *fp) {
     memset(buffer, 0x0, BUFFER_SIZE);
     while (!feof(fp)) {
         N = fread(buffer, 1, BUFFER_SIZE * sizeof(char), fp);
-        // printf("%d\n", N);
-        // printf("%s", buffer);
         fwrite(buffer, sizeof(buffer[0]), N * sizeof(buffer[0]), stream);
         memset(buffer, 0x0, BUFFER_SIZE);
     }
     fclose(stream);
-    // free(buffer);
 }
 
 int main(int argc, char *argv[]) {
-    int opt;  // option
-    // char *HOSTNAME = NULL;
-    // char *WEB_FILENAME = NULL;
-    char *url = NULL;              // to save the entire url which user enters on cmd line
+    int opt;           // option
+    char *url = NULL;  // to save the entire url which user enters on cmd line
+    char URL[BUFFER_SIZE];
+    char HOSTNAME[BUFFER_SIZE];
+    char WEB_FILENAME[BUFFER_SIZE];
     char *OUTPUT_FILENAME = NULL;  // write to this file in local system
     bool PRINT_INFO = false;       // flag to check if user entered -i on the cmd line
     bool PRINT_REQ = false;        // flag to check if user entered -c on the cmd line
@@ -291,14 +274,17 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
-    // char *URL = malloc(strlen(url) + 1);
-    char URL[BUFFER_SIZE];
-    char HOSTNAME[BUFFER_SIZE];
-    char WEB_FILENAME[BUFFER_SIZE];
+    // Limitation of static memory alloc implementation
+    if (strlen(url) > BUFFER_SIZE - 1) {
+        printf("Url is limited to %d characters", BUFFER_SIZE - 1);
+        exit(ERROR);
+    }
+
     memset(URL, 0x0, BUFFER_SIZE);
     memset(HOSTNAME, 0x0, BUFFER_SIZE);
     memset(WEB_FILENAME, 0x0, BUFFER_SIZE);
     strncpy(URL, url, strlen(url));
+
     while (true) {
         bool STATUS_301 = false;  // check if received 301 resp from server
         /* Parse_url, generate hostname, web_filename and GET req. Send GET req */
@@ -308,7 +294,7 @@ int main(int argc, char *argv[]) {
 
         int length_needed = strlen(REQ_TYPE) + strlen(WEB_FILENAME) + strlen(HTTP_VERSION) + strlen(HOST) + strlen(HOSTNAME) + strlen(CARRIAGE) + strlen(CLIENT) + strlen(CARRIAGE);
         char REQUEST[length_needed + 1];
-        memset(REQUEST, 0, length_needed + 1);
+        memset(REQUEST, 0x0, length_needed + 1);
         generate_req(HOSTNAME, WEB_FILENAME, REQUEST, OUTPUT_FILENAME, PRINT_INFO, PRINT_REQ, length_needed);  // printing logic is also handled in here
         int sd = create_socket_and_send_request(HOSTNAME, REQUEST);
 
@@ -336,8 +322,5 @@ int main(int argc, char *argv[]) {
         if (!ENABLE_REDIRECT)
             break;
     }
-    // free(WEB_FILENAME);
-    // free(HOSTNAME);
-    // free(URL);
     exit(0);
 }
