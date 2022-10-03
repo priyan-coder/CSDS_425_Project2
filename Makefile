@@ -11,6 +11,6 @@ clean:
 	rm -f *.html
 	rm -f *.png
 	rm -f *.jpg
-	rm -f *.bat
+	rm -f *.dat
 
 distclean: clean
